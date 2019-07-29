@@ -19,17 +19,29 @@ function setup() {
   })
   bgImg = loadImage('assets/beach.jpg')
   button = createButton('startRecording');
-  button.position(19, 19);
+  
   button.mousePressed(v=>{
     recorder.toggleRecording();
     button.html(recorder.isRecording?'stop recording':'start recording')
     
   });
+
   sliderThresh = createSlider(0,100,100);
-  sliderThresh.position(39, 39);
-  
   sliderTol = createSlider(0,100,100);
-  sliderTol.position(39, 59);
+
+
+  
+  const wSize = getWindowWidth()/4
+  const gap = 10
+  let y = 0
+  let x = 0
+  const allUIs = [button,sliderThresh,sliderTol]
+  const hSize = getWindowHeight()/allUIs.length
+  for(const element of allUIs){
+    element.position(x,y);
+    element.size(wSize,hSize)
+    y+=hSize+gap
+  }
 
 
  
