@@ -1,46 +1,7 @@
-const singletons = {canvas:{},greenScreenMedia : {}}
+const singletons = {canvas:{}}
 
-function meanDistColor(a,b,i){
-  const dr = Math.abs(a[i] - b[0])
-  const dg = Math.abs(a[i+1] - b[1])
-  const db = Math.abs(a[i+2] - b[2])
-  return (dr+dg+db)/3
-}
 
-function normDistColor(a,b,i){
-  const dr = a[i] - b[0]
-  const dg = a[i+1] - b[1]
-  const db = a[i+2] - b[2]
-  return Math.sqrt((dr*dr+dg*dg+db*db)/3)
-}
 
-function meanC(b,i){
-  return (b[i+0]+b[i+1]+b[i+2])/3
-}
-function stdC(b,mean,i){
-  return Math.sqrt(((b[i+0] - mean)*(b[i+0] - mean) + 
-                (b[i+1] - mean)*(b[i+1] - mean)+
-                (b[i+2] - mean)*(b[i+2] - mean)) / 3)
-}
-
-function centerC(b,i){
-  return (b[i] + 2.0*b[i+1] + 3.0*b[i+2])/6.0
-}
-
-function shapeDistColor(a,b,i){
-  const meanA = meanC(a,i)
-  const stdA  = stdC(a,meanA,i)
-  const centerA = centerC(a,i)
-  const meanB = meanC(b,0)
-  const stdB  = stdC(b,meanB,0)
-  const centerB = centerC(b,0)
-  const stdDist = Math.max(0,Math.min(255.0,Math.abs(stdA-stdB)))
-  // const nDist = normDistColor(a,b,i)
-  const centerDist = Math.max(0,Math.min(255.0,Math.abs(centerA-centerB)))
-  const al = 0.5
-  return centerDist*al + (1-al)*stdDist
-  // return centerDist*stdDist/255.0
-}
 
 
 function setupCanvas(){
@@ -110,13 +71,15 @@ function initWebcam(device){
   }
   : VIDEO
 
-  singletons.greenScreenMedia = createCapture(constraints,d=>{
+  const wcMedia = createCapture(constraints,d=>{
     // debugger
   });
-  singletons.greenScreenMedia.hide()
-  return singletons.greenScreenMedia
+  wcMedia.hide()
+  return wcMedia
 
 }
+
+
 
 function _smoothRel(x,c){
   if(x<0)return 0
@@ -129,38 +92,76 @@ function smoothRel(x,c){
   return Math.pow(x,c)
 }
 
+
 function colorToAlpha(img,color,threshold,tolerance){
   if(!img  || img.pixels===undefined)return
-  img.loadPixels()
+  
   if(  img.pixels.length===0)return
   if(!tolerance){
-    tolerance = .5;
+    tolerance = 0.0001;
 
   }
   const curve = 1;
   const w = img.width
   const h = img.height
   const pixT = img.pixels
-  for(let x = 0 ; x < w ; x++){
-    for(let  y = 0 ; y < h ; y++){
+
+for(let y = 0 ; y < h ; y++){
+  for(let x = y%2 ; x < w ; x+=2){
+    
       const i = (y*w+x)*4;
-      const dist = shapeDistColor(pixT,color,i);
+      const dist = hsvDist(pixT,color,i);
       let relDist = smoothRel((1-(threshold+tolerance-dist)/(2*tolerance)),curve)
       
       const ta = dist>threshold+tolerance?255:
       Math.max(0,255*relDist);
       
+      // pixT[i+3] = 255
+      // pixT[i+2] = ta
+      // pixT[i+1] = 0
+      // pixT[i] = 0
       pixT[i+3] = ta
 
     }
   }
-  img.updatePixels();
+  
+}
+
+function blurAlpha(img,size){
+    if(!img  || img.pixels===undefined)return
+  
+  if(  img.pixels.length===0)return
+
+  
+  const w = img.width
+  const h = img.height
+  const pixT = img.pixels
+
+for(let  y = 1 ; y < h-1 ; y++){
+  for(let x = (y%2)+1; x < w-1 ; x+=2){
+    
+      const i =  (y*w+    x)*4+3;
+      const it = ((y-1)*w+x)*4+3;
+      const ib = ((y+1)*w+x)*4+3;
+      const il = ((y)*w+x-1)*4+3;
+      const ir = ((y)*w+x+1)*4+3;
+      const ta = (pixT[it] + pixT[ib] + pixT[ir] + pixT[il])/4
+      
+      // pixT[i-3] = ta
+      // pixT[i-2] = 0
+      // pixT[i-1] = 0
+      // pixT[i] = 255
+      pixT[i] = ta
+
+    }
+  }
+
 }
 
 
-function getColorUnderMouseClick(e){
+function getColorUnderMouseClick(e,greenScreenMedia){
   const canvas = singletons.canvas
-  const greenScreenMedia = singletons.greenScreenMedia
+  
     if(e.srcElement != singletons.canvas.canvas )//|| (mouseStart.x>0 && mouseStart.x!=mouseX))
       { return;}
 
@@ -173,9 +174,10 @@ function getColorUnderMouseClick(e){
   const loc = (jCam*greenScreenMedia.width + iCam)*4;
   // greenScreenMedia.loadPixels();
   const c = [
-    singletons.greenScreenMedia.pixels[loc + 0],
-    singletons.greenScreenMedia.pixels[loc + 1],
-    singletons.greenScreenMedia.pixels[loc + 2],
+    greenScreenMedia.pixels[loc + 0],
+    greenScreenMedia.pixels[loc + 1],
+    greenScreenMedia.pixels[loc + 2],
     ]
     return c;
 }
+

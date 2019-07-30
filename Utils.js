@@ -1,4 +1,4 @@
-var isHighRes = false
+var isHighRes = true
 function setSmoothedCanvas(c,tog){
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = tog;
@@ -39,5 +39,82 @@ function fitStretched(src,dest){
   return res
 
 }
+
+
+function meanDistColor(a,b,i){
+  const dr = Math.abs(a[i] - b[0])
+  const dg = Math.abs(a[i+1] - b[1])
+  const db = Math.abs(a[i+2] - b[2])
+  return (dr+dg+db)/3
+}
+
+function normDistColor(a,b,i){
+  const dr = a[i] - b[0]
+  const dg = a[i+1] - b[1]
+  const db = a[i+2] - b[2]
+  return Math.sqrt((dr*dr+dg*dg+db*db)/3)
+}
+
+function meanC(b,i){
+  return (b[i+0]+b[i+1]+b[i+2])/3
+}
+function stdC(b,mean,i){
+  return Math.sqrt(((b[i+0] - mean)*(b[i+0] - mean) + 
+                (b[i+1] - mean)*(b[i+1] - mean)+
+                (b[i+2] - mean)*(b[i+2] - mean)) / 3)
+}
+
+function centerC(b,i){
+  return (b[i] + 2.0*b[i+1] + 3.0*b[i+2])/6.0
+}
+
+function shapeDistColor(a,b,i){
+  const meanA = meanC(a,i)
+  const stdA  = stdC(a,meanA,i)
+  const centerA = centerC(a,i)
+  const meanB = meanC(b,0)
+  const stdB  = stdC(b,meanB,0)
+  const centerB = centerC(b,0)
+  const stdDist = Math.max(0,Math.min(255.0,Math.abs(stdA-stdB)))
+  // const nDist = normDistColor(a,b,i)
+  const centerDist = Math.max(0,Math.min(255.0,Math.abs(centerA-centerB)))
+  const al = 0.5
+  return centerDist*al + (1-al)*stdDist
+  // return centerDist*stdDist/255.0
+}
+
+function hsvDist(a,b,i){
+  const hsvA = toHSV(a,i)
+  const hsvB = 'hsvValue' in b ? b.hsvValue: toHSV(b,0)
+  const dHSV = [(hsvA[0] - hsvB[0]),
+                (hsvA[1] - hsvB[1]) ,
+                (hsvA[2] - hsvB[2]) ]
+  const weights = [1,0.1,0.1]
+
+  return Math.sqrt((dHSV[0]*dHSV[0]*weights[0] + dHSV[1]*dHSV[1]*weights[1] + dHSV[2]*dHSV[2]*weights[2])/(weights[0]+weights[1]+weights[2]))
+
+
+}
+
+function toHSV(c,i){
+      const r = c[i+0]
+    const g = c[i+1]
+    const b = c[i+2]
+    // if (r<0 || g<0 || b<0 || r>255 || g>255 || b>255) {debugger;return ; }
+
+    const minRGB = Math.min(r,Math.min(g,b));
+    const maxRGB = Math.max(r,Math.max(g,b));
+
+    // Black-gray-white
+    if (minRGB==maxRGB) { return [0,0,minRGB];}
+
+    // Colors other than black-gray-white:
+    const d = (r==minRGB) ? g-b : ((b==minRGB) ? r-g : b-r);
+    const  h = (r==minRGB) ? 3 : ((b==minRGB) ? 1 : 5);
+    return[ 42.5*(h - d/(maxRGB - minRGB)),
+          (maxRGB - minRGB)*255/maxRGB,
+            maxRGB]
+}
+
 
 
