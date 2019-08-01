@@ -1,23 +1,22 @@
 'use strict'
 var button;
-var sliderThresh,sliderTol,selBackground,selForeground ;
+var sliderThresh,sliderTol,selBackground,selForeground,selRes ;
 var canvas;
 var transparentImg;
 var colorToRemove = [255,255,0]
 var thresh = 100;
-var webcams;
 var recorder ;
 var bgImg;
-var webcams;
+
+var allUIs;
+var showUI;
+
 
 function setup() {
   canvas = setupCanvas()
   recorder = new MyMediaRecorder(canvas)
-  setupWebcams((wc)=>{
-    webcams = wc;
-    console.log('webcams',webcams)
-    const device= webcams[Object.keys(webcams)[0]] 
-    transparentImg = initWebcam(device)
+  setupWebcams(()=>{
+    transparentImg = loadMedia("webcam:0",webcamLoaded)
   })
   
   // bgImg = loadMedia('beach.jpg')
@@ -28,53 +27,64 @@ function setup() {
     button.html(recorder.isRecording?'stop recording':'start recording')
     
   });
-
+  showUI = createButton('show')
+  showUI.position(100,100)
   sliderThresh = createSlider(0,200,100);
   sliderTol = createSlider(0,100,0);
   selBackground = createSelect()
   selForeground = createSelect()
-  const medias = ["none","franck.mp4","beach.jpg","webcam:0"]
+
+  const medias = ["none","franck.mp4","minions.mp4","beach.jpg","pngtest.png","webcam:0","webcam:1"]
 
   for(const m of medias){
     selBackground.option(m)
     selForeground.option(m)
   }
   selBackground.changed((m)=>{
-    bgImg = loadMedia(m.srcElement.value)
-  }
-    )
+    bgImg = loadMedia(selBackground.value())
+  })
+
   selForeground.changed((m)=>{
-    transparentImg = loadMedia(m.srcElement.value)
-  }
-    )
+    transparentImg = loadMedia(selForeground.value(),webcamLoaded)
 
+  })
 
-  
-  const wSize = getWindowWidth()/3
-  const gap = 10
-  let y = 0
-  let x = 0
-  const allUIs = [button,sliderThresh,sliderTol,selBackground,selForeground]
-  const hSize = getWindowHeight()/allUIs.length
-  for(const element of allUIs){
-    element.position(x,y);
-    element.size(wSize,hSize)
-    y+=hSize+gap
-  }
+  selRes = createSlider(0.1,1,1,0.1)
+  selRes.changed(()=>{
+    setDownscaling(selRes.value())
+    if(transparentImg ){
+      transparentImg = loadMedia(selForeground.value(),undefined,{width:{max:getCanvasResW()},height:{max:getCanvasResW()}})
+      // const vt = transparentImg.stream.getVideoTracks()[0];
+      // if(vt){
+      //   debugger
+      //   vt.applyConstraints({width:getCanvasResW(),height:getCanvasResH() }).then(()=>{
+      //     debugger
+      //   })
+      // }
+
+    }
+  })
+
+  allUIs = [button,sliderThresh,sliderTol,selBackground,selForeground,selRes]
+  layoutUI()
 
 
 
 
 }
 
+function webcamLoaded(){
+  let w = transparentImg.width
+  let h = transparentImg.height
 
-function changeBG() {
+  setTargetRes(w,h)
+  resizeCanvasToWindow()
 
 }
-
 
 
 function drawBG(){
+
   background(0)
   const fitR = fitStretched(transparentImg,canvas)
   
@@ -88,54 +98,26 @@ function drawBG(){
   }
 }
 
+function drawFG(){
 
-function loadMedia(path){
-  let med;
-  if(path.startsWith("webcam:")){
-    const wNum = parseInt(path.substr(7))
-    if(wNum<Object.keys(webcams).length){
-      const device= webcams[Object.keys(webcams)[wNum]] 
-      med =  initWebcam(device)
-      return med
-    }
-    else{
-      console.error('webcam num',wNum,'does not exists' )
-    }
-  }
-  else if (path==="none"){
-    return
-  }
-  else{
-    path='assets/'+path
-    if(path.endsWith(".mp4")){
-     med = createVideo(path,
-      ()=>{
-        med.loop();
-        med.volume(0);
-      })
-     med.hide()
 
-   }
-   else if(path.endsWith(".jpg")){
-    med = loadImage(path)
-  }
-  else{
-    console.error("extention not supported",path)
-  }
-  return med
-}
+  // colorToAlphaShader(transparentImg,colorToRemove,sliderThresh.value(),sliderTol.value())
+
+  transparentImg.loadPixels()
+  colorToAlpha(transparentImg,colorToRemove,sliderThresh.value(),sliderTol.value())
+  transparentImg.updatePixels()
+
+  // blurAlpha(transparentImg,1)
+  const fitR = fitStretched(transparentImg,canvas)
+  image(transparentImg,fitR.left,fitR.top, fitR.width, fitR.height);
+  
 }
 
 function draw(){
   if(transparentImg){
     drawBG();
-    transparentImg.loadPixels()
-    colorToAlpha(transparentImg,colorToRemove,sliderThresh.elt.valueAsNumber,sliderTol.elt.valueAsNumber)
-    blurAlpha(transparentImg,1)
-    const fitR = fitStretched(transparentImg,canvas)
-
-    transparentImg.updatePixels()
-    image(transparentImg,fitR.left,fitR.top, fitR.width, fitR.height);
+    drawFG();
+   
   }
   
 }
@@ -149,10 +131,23 @@ function mouseClicked(e){
 }
 
 function windowResized() {
-  resizeCanvas(getCanvasResW(),getCanvasResH(),true);
-  canvas.canvas.style.width = ""+getWindowWidth()+"px"
-  canvas.canvas.style.height = ""+getWindowHeight()+"px"
+  resizeCanvasToWindow()
+  layoutUI()
   // camera.size(windowWidth, windowHeight);
   
 }
 
+
+function layoutUI(){
+  const wSize = getWindowWidth()/3
+  const gap = 10
+  let y = 0
+  let x = 0
+  
+  const hSize = getWindowHeight()/allUIs.length
+  for(const element of allUIs){
+    element.position(x,y);
+    element.size(wSize,hSize-gap)
+    y+=hSize
+  }
+}

@@ -22,37 +22,72 @@ class MyMediaRecorder{
     const mediaSource = new MediaSource();
     mediaSource.addEventListener('sourceopen', this.handleSourceOpen.bind(this), false);
 
+    // this.mimeType = "video/webm\;codecs=h264"
+    this.mimeType ="video/webm\;codecs=vp9"
+    // this.mimeType = "video/webm"
 
     const canvas = cnv.canvas
     var types = ["video/webm", 
-             "video/webm\;codecs=vp8", 
-             "video/webm\;codecs=daala", 
-             "video/webm\;codecs=h264", 
-             "video/mpeg"];
+    "video/webm\;codecs=vp8", 
+    "video/webm\;codecs=daala", 
+    "video/webm\;codecs=h264", 
+    "video/mpeg"];
 
-for (var i in types) { 
-  console.log( "Is " + types[i] + " supported? " + (MediaRecorder.isTypeSupported(types[i]) ? "Maybe!" : "Nope :(")); 
-}
+// for (var i in types) { 
+//   console.log( "Is " + types[i] + " supported? " + (MediaRecorder.isTypeSupported(types[i]) ? "Maybe!" : "Nope :(")); 
+// }
     // debugger
-  
-  this.video = createVideo();
-  this.video.showControls();
-  this.video.hide()
 
-    const stream = canvas.captureStream();
-    this.mic = new p5.AudioIn()
-    this.mic.start(()=>{
-      stream.addTrack(this.mic.stream.getAudioTracks()[0])
-      console.log("adding audio track to video recorder")
-    });
+    this.video = createVideo();
+    this.video.showControls();
+    this.video.hide()
+
+
     
-    console.log('Started stream capture from canvas element: ', stream);
+    
 
 
-    this.stream = stream
+    
     this.mediaSource = mediaSource
     this.canvas = canvas
     this.isRecording = false;
+    this.createStream(canvas)
+  }
+  createStream(c){
+
+    
+    console.log('Started stream capture from canvas element: ', this.stream);
+    this.mic = new p5.AudioIn()
+    this.mic.getSources((deviceList)=> {
+       //print out the array of available sources
+       console.log(deviceList);
+       //set the source to the first item in the deviceList array
+       
+       let Idx = deviceList.findIndex((e)=> e.label.toLowerCase().indexOf("webcam")>=0)
+       Idx = Math.max(0,Idx)
+       
+       this.mic.setSource(Idx);
+
+       this.mic.start(()=>{
+        
+        const st = this.mic.stream.getAudioTracks()[0]
+        let latency  = 0;
+        if(st.getCapabilities){
+          if(st.getCapabilities().latency){
+            latency = Math.min(st.getCapabilities().latency.max,1)
+
+          }
+        }
+
+        st.applyConstraints({latency}).finally(()=>{
+        this.stream = c.captureStream();
+        this.stream.addTrack(st)
+        console.log("adding audio track to video recorder")
+        })
+      });
+     });
+    
+
   }
 
   handleSourceOpen(event) {
@@ -71,7 +106,7 @@ for (var i in types) {
   handleStop(event) {
     console.log('Recorder stopped: ', event);
     if(this.video){
-      this.video.show()
+      // this.video.show()
       const superBuffer = new Blob(this.recordedBlobs, {type: 'video/webm'});
       this.video.elt.src = window.URL.createObjectURL(superBuffer);
     }
@@ -88,7 +123,7 @@ for (var i in types) {
   // The nested try blocks will be simplified when Chrome 47 moves to Stable
   startRecording() {
     const audioTrack = this.mic.stream.getAudioTracks()
-    let options = {mimeType: 'video/webm'};
+    let options = {mimeType: this.mimeType};
     this.recordedBlobs = [];
     try {
       this.mediaRecorder = new MediaRecorder(this.stream, options);
@@ -127,7 +162,20 @@ for (var i in types) {
     this.mediaRecorder.stop();
     console.log('Recorded Blobs: ', this.recordedBlobs);
     this.isRecording = false;
-    if(this.video){this.video.show()}
+    if(this.video){
+
+      this.video.show()
+      this.video.elt.onloadeddata = ()=> {
+        this.video.elt.requestPictureInPicture().catch(e=>{
+          debugger
+          this.video.show()
+          console.error(e)
+        });
+      };
+      
+
+
+    }
   }
 
   play() {
