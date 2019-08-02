@@ -144,7 +144,7 @@ function colorZToAlpha(img,color,color2,threshold){
   }
 }
 
-function colorToAlpha(img,color,threshold,tolerance){
+function colorToAlpha(img,color,threshold,tolerance,stride){
   if(!img  || img.pixels===undefined)return;
   if(  img.pixels.length===0)return;
   if(!tolerance){tolerance = 0;}
@@ -154,63 +154,67 @@ function colorToAlpha(img,color,threshold,tolerance){
   const pixT = img.pixels
   const wh = w*h*4
   color.hsvValue = toHSV(color,0)
-
+  if(!stride)stride=0;
   if(tolerance===0){
     const thresholdSq = threshold*threshold;
-    const stride = 8
-    
-    // first coarse pass
-    for( let x = 0 ; x < w ; x+=stride){
-      for( let y = 0 ; y < h ; y+=stride){
-        const i = (y*w + x)*4
-        const dist = normDistSq(pixT,color,i);
-        const isFG =dist>thresholdSq; 
-        pixT[i+3] = isFG?255:0;
+    const thresholdSq3 = threshold*threshold*3;
+    if(stride===0){
+      for(let i = 0 ; i < wh; i+=4){
+        const dist = normDistSq3(pixT,color,i);
+        pixT[i+3] = dist>thresholdSq3?255:0;
+
       }
     }
+    else{
+      const stride4 = stride*4
+      // first coarse pass
+      for(let i = 0 ; i < wh; i+=stride4){
+          const dist = normDistSq3(pixT,color,i);
+          pixT[i+3] = dist>thresholdSq3?255:0;
+      }
 
-    const maxSum = 255*4
-    const stride4 = stride*4
-    for( let y = 0 ; y < h - (stride-1) ; y+=stride){
-    for( let x = 0 ; x < w-(stride-1) ; x+=stride){
+      const maxSum = 255*4
       
-        const i   = (y*w + x)*4 + 3
-        const ib  = i+w*stride4
-        const il  = i+stride4
-        const ilb = ib+stride4
-        
-        const sum = pixT[i] + pixT[ib]+pixT[ilb]+pixT[il] 
-        if(sum===maxSum ){
-          for( let j = x ; j < x+stride ; j++){
-            for( let k = y ; k < y+stride ; k++){
-              if(j==x && k==y) continue
-              pixT[(k*w + j)*4 + 3]=255;
-            }
-          }
-        }
-        else if( sum === 0){
-          for( let j = x ; j < x+stride ; j++){
-            for( let k = y ; k < y+stride ; k++){
-              if(j==x && k==y) continue
-              pixT[(k*w + j)*4 + 3]=0;
-            }
-          }
-        }
-        else{
-          for( let j = x ; j < x+stride ; j++){
-            for( let k = y ; k < y+stride ; k++){
-              if(j==x && k==y) continue
-              const ii =  (k*w + j)*4 
-              const dist = normDistSq(pixT,color,ii);
-              const isFG =dist>thresholdSq; 
-              pixT[ii+3] = isFG?255:0;
-            }
-          }
-        }
-        
-      }
-    }
+      for( let y = 0 ; y < h - (stride-1) ; y+=stride){
+        for( let x = 0 ; x < w-(stride-1) ; x+=stride){
 
+          const i   = (y*w + x)*4 + 3
+          const ib  = i+w*stride4
+          const il  = i+stride4
+          const ilb = ib+stride4
+
+          const sum = pixT[i] + pixT[ib]+pixT[ilb]+pixT[il] 
+          if(sum===maxSum ){
+            for( let j = x ; j < x+stride ; j++){
+              for( let k = y ; k < y+stride ; k++){
+                // if(j==x && k==y) continue
+                  pixT[(k*w + j)*4 + 3]=255;
+              }
+            }
+          }
+          else if( sum === 0){
+            for( let j = x ; j < x+stride ; j++){
+              for( let k = y ; k < y+stride ; k++){
+                // if(j==x && k==y) continue
+                  pixT[(k*w + j)*4 + 3]=0;
+              }
+            }
+          }
+          else{
+            for( let j = x ; j < x+stride ; j++){
+              for( let k = y ; k < y+stride ; k++){
+                // if(j==x && k==y) continue
+                  const ii =  (k*w + j)*4 
+                const dist = normDistSq3(pixT,color,ii);
+                pixT[ii+3] = dist>thresholdSq3?255:0;
+              }
+            }
+          }
+
+        }
+      }
+
+    }
 
 
 

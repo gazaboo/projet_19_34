@@ -80,6 +80,12 @@ function normDistSq(a,b,i){
   const db = a[i+2] - b[2]
   return ((dr*dr+dg*dg+db*db)/3)
 }
+function normDistSq3(a,b,i){
+  const dr = a[i] - b[0]
+  const dg = a[i+1] - b[1]
+  const db = a[i+2] - b[2]
+  return (dr*dr+dg*dg+db*db)
+  }
 
 function meanC(b,i){
   return (b[i+0]+b[i+1]+b[i+2])/3
@@ -153,7 +159,7 @@ function fromHSV(c,i){
   const h = c[i+0]/255
   const s = c[i+1]/255
   const v = c[i+2]/255
-  
+
   var r, g, b, i, f, p, q, t;
   i = Math.floor(h * 6);
   f = h * 6 - i;
