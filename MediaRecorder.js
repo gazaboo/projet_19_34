@@ -43,11 +43,6 @@ class MyMediaRecorder{
     this.video.hide()
 
 
-    
-    
-
-
-    
     this.mediaSource = mediaSource
     this.canvas = canvas
     this.isRecording = false;

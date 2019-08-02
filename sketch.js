@@ -117,7 +117,9 @@ function drawFG(){
   // colorToAlphaShader(transparentImg,colorToRemove,sliderThresh.value(),sliderTol.value())
 
   transparentImg.loadPixels()
-  colorToAlpha(transparentImg,colorToRemove,colorToRemove2,sliderThresh.value(),sliderTol.value())
+  // two colors distance
+  // colorZToAlpha(transparentImg,colorToRemove,colorToRemove2,sliderThresh.value())
+  colorToAlpha(transparentImg,colorToRemove,sliderThresh.value(),sliderTol.value())
   transparentImg.updatePixels()
   // slow code to smooth out alphas
   // blurAlpha(transparentImg,1)

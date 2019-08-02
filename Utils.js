@@ -27,7 +27,7 @@ function setTargetRes(w,h){
     w = fitr.width
     h = fitr.height
     console.error('big resolutions leads to poor perfs')
-    debugger
+    // debugger
   }
   targetRes = {w,h}
 }

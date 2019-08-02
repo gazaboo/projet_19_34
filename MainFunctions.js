@@ -113,18 +113,14 @@ function calculateDistance(c, min, max) {
 
   return 0;
 }
-
-function colorToAlpha(img,color,color2,threshold,tolerance,distF){
+function colorZToAlpha(img,color,color2,threshold){
   if(!img  || img.pixels===undefined)return;
-
   if(  img.pixels.length===0)return;
-  if(!tolerance){
-    tolerance = 0;
-  }
-  const curve = 1;
   const w = img.width
   const h = img.height
   const pixT = img.pixels
+  const wh = w*h*4
+
   if(!color2){color2 = color}
     const cmin = [color[0],color[1],color[2]];
   if(color2[0]<color[0]) cmin[0] = color2[0];
@@ -135,29 +131,99 @@ function colorToAlpha(img,color,color2,threshold,tolerance,distF){
   if(color2[0]>color[0]) cmax[0] = color2[0];
   if(color2[1]>color[1]) cmax[1] = color2[1];
   if(color2[2]>color[2]) cmax[2] = color2[2];
+  const thresholdSq = threshold*threshold
+
+  for(let i = wh-4 ; i >0; i-=4){
+    const distL = [
+    calculateDistance(pixT[i  ],cmin[0],cmax[0]),
+    calculateDistance(pixT[i+1],cmin[1],cmax[1]),
+    calculateDistance(pixT[i+2],cmin[2],cmax[2])
+    ];
+    const dist = (distL[0]*distL[0]+distL[1]*distL[1]+distL[2]*distL[2])/3
+    pixT[i+3] = dist>thresholdSq?255:0;
+  }
+}
+
+function colorToAlpha(img,color,threshold,tolerance){
+  if(!img  || img.pixels===undefined)return;
+  if(  img.pixels.length===0)return;
+  if(!tolerance){tolerance = 0;}
+  
+  const w = img.width
+  const h = img.height
+  const pixT = img.pixels
+  const wh = w*h*4
   color.hsvValue = toHSV(color,0)
-  if(!distF){distF = normDist}
-    const wh = w*h*4
+
   if(tolerance===0){
-    const thresholdSq = threshold*threshold
-    for(let i = wh-4 ; i >0; i-=4){
-      const distL = [calculateDistance(pixT[i],cmin[0],cmax[0]),
-      calculateDistance(pixT[i+1],cmin[1],cmax[1]),
-      calculateDistance(pixT[i+2],cmin[2],cmax[2])];
-      const dist = (distL[0]*distL[0]+distL[1]*distL[1]+distL[2]*distL[2])/3
-      //Math.min(distF(pixT,cmin,i),distF(pixT,cmax,i));
-      pixT[i+3] = dist>thresholdSq?255:0;
+    const thresholdSq = threshold*threshold;
+    const stride = 8
+    
+    // first coarse pass
+    for( let x = 0 ; x < w ; x+=stride){
+      for( let y = 0 ; y < h ; y+=stride){
+        const i = (y*w + x)*4
+        const dist = normDistSq(pixT,color,i);
+        const isFG =dist>thresholdSq; 
+        pixT[i+3] = isFG?255:0;
+      }
     }
+
+    const maxSum = 255*4
+    const stride4 = stride*4
+    for( let y = 0 ; y < h - (stride-1) ; y+=stride){
+    for( let x = 0 ; x < w-(stride-1) ; x+=stride){
+      
+        const i   = (y*w + x)*4 + 3
+        const ib  = i+w*stride4
+        const il  = i+stride4
+        const ilb = ib+stride4
+        
+        const sum = pixT[i] + pixT[ib]+pixT[ilb]+pixT[il] 
+        if(sum===maxSum ){
+          for( let j = x ; j < x+stride ; j++){
+            for( let k = y ; k < y+stride ; k++){
+              if(j==x && k==y) continue
+              pixT[(k*w + j)*4 + 3]=255;
+            }
+          }
+        }
+        else if( sum === 0){
+          for( let j = x ; j < x+stride ; j++){
+            for( let k = y ; k < y+stride ; k++){
+              if(j==x && k==y) continue
+              pixT[(k*w + j)*4 + 3]=0;
+            }
+          }
+        }
+        else{
+          for( let j = x ; j < x+stride ; j++){
+            for( let k = y ; k < y+stride ; k++){
+              if(j==x && k==y) continue
+              const ii =  (k*w + j)*4 
+              const dist = normDistSq(pixT,color,ii);
+              const isFG =dist>thresholdSq; 
+              pixT[ii+3] = isFG?255:0;
+            }
+          }
+        }
+        
+      }
+    }
+
+
+
+
   }
   else{
     const tolerance2 = 2*tolerance;
     const ttol = threshold+tolerance
     for(let i = 0 ; i < wh; i+=4){
-      const dist = distF(pixT,color,i);
+      const dist = normDist(pixT,color,i);
 
       const relDist = (1-(ttol-dist)/tolerance2)
       pixT[i+3] = Math.min(1,Math.max(0,relDist))*255;
-      
+
     }
   }
 
@@ -175,7 +241,7 @@ function colorToAlphaShader(img,color,threshold,tolerance){
   shader(shaderO)
   // lets just send the cam to our shader as a uniform
   shaderO.setUniform('tex1', img);
-  
+
 
   // also send the mouseX value but convert it to a number between 0 and 1
   shaderO.setUniform('threshold', threshold/255);
