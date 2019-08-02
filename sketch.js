@@ -1,6 +1,6 @@
 'use strict'
 var button;
-var sliderThresh,sliderTol,selBackground,selForeground,selRes,distChk ;
+var sliderThresh,sliderTol,selBackground,selForeground,selRes,flashyColorChk ;
 var canvas;
 var transparentImg;
 var colorToRemove = [0,255,0]
@@ -78,8 +78,8 @@ function setup() {
     }
   })
 
-  distChk = createCheckbox('dist');
-  allUIs = [button,sliderThresh,sliderTol,selBackground,selForeground,selRes,distChk]
+  flashyColorChk = createCheckbox('flashy');
+  allUIs = [button,sliderThresh,sliderTol,selBackground,selForeground,selRes,flashyColorChk]
   layoutUI()
 
 
@@ -117,7 +117,7 @@ function drawFG(){
   // colorToAlphaShader(transparentImg,colorToRemove,sliderThresh.value(),sliderTol.value())
 
   transparentImg.loadPixels()
-  colorToAlpha(transparentImg,colorToRemove,colorToRemove2,sliderThresh.value(),sliderTol.value(),distChk.checked()?normDist:hsvDist)
+  colorToAlpha(transparentImg,colorToRemove,colorToRemove2,sliderThresh.value(),sliderTol.value())
   transparentImg.updatePixels()
   // slow code to smooth out alphas
   // blurAlpha(transparentImg,1)
@@ -137,7 +137,7 @@ function draw(){
 
 
 function mouseClicked(e){
-  let color = getColorUnderMouseClick(e,transparentImg,true) // last argument transforms a "soft" green into a flashy on
+  let color = getColorUnderMouseClick(e,transparentImg,flashyColorChk.checked()) // last argument transforms a "soft" green into a flashy on
   if(color){
     if(keyIsDown(SHIFT)){colorToRemove2 = color}
     else{colorToRemove = color}
