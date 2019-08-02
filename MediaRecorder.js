@@ -71,19 +71,19 @@ class MyMediaRecorder{
        this.mic.start(()=>{
         
         const st = this.mic.stream.getAudioTracks()[0]
-        let latency  = 0;
-        if(st.getCapabilities){
-          if(st.getCapabilities().latency){
-            latency = Math.min(st.getCapabilities().latency.max,1)
+        // let latency  = 0;
+        // if(st.getCapabilities){
+        //   if(st.getCapabilities().latency){
+        //     latency = Math.min(st.getCapabilities().latency.max,1)
 
-          }
-        }
+        //   }
+        // }
 
-        st.applyConstraints({latency}).finally(()=>{
+        // st.applyConstraints({latency}).finally(()=>{
         this.stream = c.captureStream();
         this.stream.addTrack(st)
         console.log("adding audio track to video recorder")
-        })
+        // })
       });
      });
     

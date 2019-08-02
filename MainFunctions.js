@@ -107,9 +107,14 @@ function smoothRel(x,c){
   if(x>1) return 1;
   return x;
 }
+function calculateDistance(c, min, max) {
+  if(c < min) return min - c;
+  if(c > max) return c - max;
 
+  return 0;
+}
 
-function colorToAlpha(img,color,threshold,tolerance){
+function colorToAlpha(img,color,color2,threshold,tolerance,distF){
   if(!img  || img.pixels===undefined)return;
 
   if(  img.pixels.length===0)return;
@@ -120,13 +125,27 @@ function colorToAlpha(img,color,threshold,tolerance){
   const w = img.width
   const h = img.height
   const pixT = img.pixels
+  if(!color2){color2 = color}
+    const cmin = [color[0],color[1],color[2]];
+  if(color2[0]<color[0]) cmin[0] = color2[0];
+  if(color2[1]<color[1]) cmin[1] = color2[1];
+  if(color2[2]<color[2]) cmin[2] = color2[2];
+
+  const cmax = [color[0],color[1],color[2]];
+  if(color2[0]>color[0]) cmax[0] = color2[0];
+  if(color2[1]>color[1]) cmax[1] = color2[1];
+  if(color2[2]>color[2]) cmax[2] = color2[2];
   color.hsvValue = toHSV(color,0)
-  
-  const wh = w*h*4
+  if(!distF){distF = normDist}
+    const wh = w*h*4
   if(tolerance===0){
     const thresholdSq = threshold*threshold
     for(let i = wh-4 ; i >0; i-=4){
-      const dist = normDistSq(pixT,color,i);
+      const distL = [calculateDistance(pixT[i],cmin[0],cmax[0]),
+      calculateDistance(pixT[i+1],cmin[1],cmax[1]),
+      calculateDistance(pixT[i+2],cmin[2],cmax[2])];
+      const dist = (distL[0]*distL[0]+distL[1]*distL[1]+distL[2]*distL[2])/3
+      //Math.min(distF(pixT,cmin,i),distF(pixT,cmax,i));
       pixT[i+3] = dist>thresholdSq?255:0;
     }
   }
@@ -134,7 +153,7 @@ function colorToAlpha(img,color,threshold,tolerance){
     const tolerance2 = 2*tolerance;
     const ttol = threshold+tolerance
     for(let i = 0 ; i < wh; i+=4){
-      const dist = normDist(pixT,color,i);
+      const dist = distF(pixT,color,i);
 
       const relDist = (1-(ttol-dist)/tolerance2)
       pixT[i+3] = Math.min(1,Math.max(0,relDist))*255;
@@ -145,63 +164,58 @@ function colorToAlpha(img,color,threshold,tolerance){
 }
 
 function colorToAlphaShader(img,color,threshold,tolerance){
+  if(!img  || img.pixels===undefined)return;
+
+  if(  img.pixels.length===0)return;
+  if(!tolerance){
+    tolerance = 0.0001;
+
+  }
+  const shaderO = singletons.shaders.colorToAlpha;
+  shader(shaderO)
+  // lets just send the cam to our shader as a uniform
+  shaderO.setUniform('tex1', img);
+  
+
+  // also send the mouseX value but convert it to a number between 0 and 1
+  shaderO.setUniform('threshold', threshold/255);
+  shaderO.setUniform('tolerance', tolerance/255);
+  shaderO.setUniform('color', color);
+
+  // rect gives us some geometry on the screen
+  rect(0,0,width, height);
+}
+
+function blurAlpha(img,size){
   if(!img  || img.pixels===undefined)return
 
     if(  img.pixels.length===0)return
-      if(!tolerance){
-        tolerance = 0.0001;
+
+
+      const w = img.width
+    const h = img.height
+    const pixT = img.pixels
+
+    for(let  y = 1 ; y < h-1 ; y++){
+      for(let x = (y%2)+1; x < w-1 ; x+=2){
+
+        const i =  (y*w+    x)*4+3;
+        const it = ((y-1)*w+x)*4+3;
+        const ib = ((y+1)*w+x)*4+3;
+        const il = ((y)*w+x-1)*4+3;
+        const ir = ((y)*w+x+1)*4+3;
+        const ta = (pixT[it] + pixT[ib] + pixT[ir] + pixT[il])/4
+        pixT[i] = ta
 
       }
-      const shaderO = singletons.shaders.colorToAlpha;
-      shader(shaderO)
-      // lets just send the cam to our shader as a uniform
-      shaderO.setUniform('tex1', img);
-      
-
-      // also send the mouseX value but convert it to a number between 0 and 1
-      shaderO.setUniform('threshold', threshold/255);
-      shaderO.setUniform('tolerance', tolerance/255);
-      shaderO.setUniform('color', color);
-
-      // rect gives us some geometry on the screen
-      rect(0,0,width, height);
     }
 
-    function blurAlpha(img,size){
-      if(!img  || img.pixels===undefined)return
-
-        if(  img.pixels.length===0)return
-
-
-          const w = img.width
-        const h = img.height
-        const pixT = img.pixels
-
-        for(let  y = 1 ; y < h-1 ; y++){
-          for(let x = (y%2)+1; x < w-1 ; x+=2){
-
-            const i =  (y*w+    x)*4+3;
-            const it = ((y-1)*w+x)*4+3;
-            const ib = ((y+1)*w+x)*4+3;
-            const il = ((y)*w+x-1)*4+3;
-            const ir = ((y)*w+x+1)*4+3;
-            const ta = (pixT[it] + pixT[ib] + pixT[ir] + pixT[il])/4
-
-      // pixT[i-3] = ta
-      // pixT[i-2] = 0
-      // pixT[i-1] = 0
-      // pixT[i] = 255
-      pixT[i] = ta
-
-    }
   }
 
-}
 
-
-function getColorUnderMouseClick(e,greenScreenMedia){
-  const canvas = singletons.canvas
-
+  function getColorUnderMouseClick(e,greenScreenMedia,toUnNatural){
+    const canvas = singletons.canvas
+  if(e.srcElement.localName === "body"){return [0,255,0]} // green if clicked out
     if(e.srcElement != singletons.canvas.canvas )//|| (mouseStart.x>0 && mouseStart.x!=mouseX))
       { return;}
     greenScreenMedia.loadPixels()
@@ -214,11 +228,17 @@ function getColorUnderMouseClick(e,greenScreenMedia){
     const loc = (jCam*greenScreenMedia.width + iCam)*4;
   // greenScreenMedia.loadPixels();
   if(loc+2 < greenScreenMedia.pixels.length){
-    const c = [
+    let c = [
     greenScreenMedia.pixels[loc + 0],
     greenScreenMedia.pixels[loc + 1],
     greenScreenMedia.pixels[loc + 2],
     ]
+    if(toUnNatural){ // get flashy value related to color, helps if we want to remove a primary color like green
+      let hsv = toHSV(c,0)
+      hsv[1] = Math.max(200,hsv[1])
+      hsv[2] = 255
+      c = fromHSV(hsv,0)
+    }
     return c;
   }
   else{
@@ -246,7 +266,7 @@ function loadMedia(path,cb,caps){
     return
   }
   else{
-    if(!path.startsWith('assets/')){path='assets/'+path}
+    if(!path.startsWith("http") && !path.startsWith('assets/')){path='assets/'+path}
       if([".mp4",".mov",".avi",".webm"].some(ext=>path.endsWith(ext))){
        med = createVideo(path,
         ()=>{
