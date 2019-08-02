@@ -23,8 +23,8 @@ class MyMediaRecorder{
     mediaSource.addEventListener('sourceopen', this.handleSourceOpen.bind(this), false);
 
     // this.mimeType = "video/webm\;codecs=h264"
-    this.mimeType ="video/webm\;codecs=vp9"
-    // this.mimeType = "video/webm"
+    // this.mimeType ="video/webm\;codecs=vp9"
+    this.mimeType = "video/webm" //best quality so far
 
     const canvas = cnv.canvas
     var types = ["video/webm", 
@@ -151,7 +151,7 @@ class MyMediaRecorder{
     this.isRecording = true
     this.mediaRecorder.onstop = this.handleStop.bind(this);
     this.mediaRecorder.ondataavailable = this.handleDataAvailable.bind(this);
-    this.mediaRecorder.start(100); // collect 100ms of data
+    this.mediaRecorder.start(); // collect x ms of data
     if(this.video){
       this.video.hide()
     }
