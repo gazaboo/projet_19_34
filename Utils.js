@@ -67,6 +67,12 @@ function meanDist(a,b,i){
   const db = Math.abs(a[i+2] - b[2])
   return (dr+dg+db)/3
 }
+function meanDist3(a,b,i){
+  const dr = Math.abs(a[i] - b[0])
+  const dg = Math.abs(a[i+1] - b[1])
+  const db = Math.abs(a[i+2] - b[2])
+  return (dr+dg+db)
+}
 
 function normDist(a,b,i){
   const dr = a[i] - b[0]

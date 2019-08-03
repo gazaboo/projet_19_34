@@ -156,6 +156,7 @@ function colorToAlpha(img,color,threshold,tolerance,stride){
   color.hsvValue = toHSV(color,0)
   if(!stride)stride=0;
   if(tolerance===0){
+    const threshold3 = threshold*3
     const thresholdSq = threshold*threshold;
     const thresholdSq3 = threshold*threshold*3;
     if(stride===0){
@@ -168,15 +169,18 @@ function colorToAlpha(img,color,threshold,tolerance,stride){
     else{
       const stride4 = stride*4
       // first coarse pass
-      for(let i = 0 ; i < wh; i+=stride4){
+      for( let y = 0 ; y < h ; y+=stride){
+        for( let x = 0 ; x < w ; x+=stride){
+          const i = (y*w + x)*4 
           const dist = normDistSq3(pixT,color,i);
           pixT[i+3] = dist>thresholdSq3?255:0;
+        }
       }
 
       const maxSum = 255*4
       
-      for( let y = 0 ; y < h - (stride-1) ; y+=stride){
-        for( let x = 0 ; x < w-(stride-1) ; x+=stride){
+      for( let y = 0 ; y < h - (stride) ; y+=stride){
+        for( let x = 0 ; x < w-(stride) ; x+=stride){
 
           const i   = (y*w + x)*4 + 3
           const ib  = i+w*stride4
@@ -191,12 +195,12 @@ function colorToAlpha(img,color,threshold,tolerance,stride){
                   pixT[(k*w + j)*4 + 3]=255;
               }
             }
-          }
-          else if( sum === 0){
-            for( let j = x ; j < x+stride ; j++){
-              for( let k = y ; k < y+stride ; k++){
+        }
+        else if( sum === 0){
+          for( let j = x ; j < x+stride ; j++){
+            for( let k = y ; k < y+stride ; k++){
                 // if(j==x && k==y) continue
-                  pixT[(k*w + j)*4 + 3]=0;
+                pixT[(k*w + j)*4 + 3]=0;
               }
             }
           }
@@ -204,7 +208,7 @@ function colorToAlpha(img,color,threshold,tolerance,stride){
             for( let j = x ; j < x+stride ; j++){
               for( let k = y ; k < y+stride ; k++){
                 // if(j==x && k==y) continue
-                  const ii =  (k*w + j)*4 
+                const ii =  (k*w + j)*4 
                 const dist = normDistSq3(pixT,color,ii);
                 pixT[ii+3] = dist>thresholdSq3?255:0;
               }

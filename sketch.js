@@ -1,4 +1,6 @@
 'use strict'
+
+p5.disableFriendlyErrors = true; // disables FES
 var button;
 var sliderThresh,sliderTol,selBackground,selForeground,selRes,flashyColorChk ;
 var canvas;
