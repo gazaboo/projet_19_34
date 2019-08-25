@@ -1,3 +1,5 @@
+
+
 const singletons = {canvas:{},webcams:{},shaders:{colorToAlpha}}
 
 
@@ -26,6 +28,69 @@ function setupCanvas(){
   window.setTimeout(()=>{ windowResized()},0)
   return canvas;
 
+}
+
+function otherSetups(canvas, medias){
+  recorder = new MyMediaRecorder(canvas) // jelper class to record canvas
+  setupWebcams(()=>{
+    transparentImg = loadMedia("webcam:0",webcamLoaded)
+  }) // function to initiate webcams (callback parameter called when done)
+  
+  // bgImg = loadMedia('beach.jpg')
+  button = createButton('startRecording');
+  
+  button.mousePressed(v=>{
+    recorder.toggleRecording();
+    button.html(recorder.isRecording?'stop recording':'start recording')
+    
+  });
+  showUI = createButton('hide')
+  showUI.position(0,0)
+  showUI.mousePressed(()=>{
+    const wasVisible  = allUIs[0].elt.style.display !== 'none';
+    if(wasVisible){showUI.html('show');allUIs.map(e=>e.hide());}
+    else{showUI.html('hide');allUIs.map(e=>e.show());}
+  })
+  sliderThresh = createSlider(0,200,100);
+  sliderTol = createSlider(0,100,0);
+  selBackground = createSelect()
+  selForeground = createSelect()
+
+  
+
+  for(const m of medias){
+    selBackground.option(m)
+    selForeground.option(m)
+  }
+  selBackground.changed((m)=>{
+    bgImg = loadMedia(selBackground.value())
+  })
+
+  selForeground.changed((m)=>{
+    transparentImg = loadMedia(selForeground.value(),webcamLoaded)
+
+  })
+
+  selRes = createSlider(0.1,1,1,0.1)
+  selRes.changed(()=>{
+    setDownscaling(selRes.value()) // can downscale resolution if needed
+    if(transparentImg ){
+      transparentImg = loadMedia(selForeground.value(),undefined,{width:{max:getCanvasResW()},height:{max:getCanvasResW()}})
+    }
+  })
+
+  flashyColorChk = createCheckbox('flashy');
+  allUIs = [button,sliderThresh,sliderTol,selBackground,selForeground,selRes,flashyColorChk]
+  layoutUI()
+
+  return recorder, transparentImg; 
+}
+
+function webcamLoaded(){
+  let w = transparentImg.width
+  let h = transparentImg.height
+  setTargetRes(w,h) // sets canvas resolution to webcam one (allow for bigger resolution than displayed -> better video recordings)
+  resizeCanvasToWindow()
 }
 
 
@@ -96,7 +161,12 @@ function initWebcam(device,cb,_caps){
 }
 
 
-
+function windowResized() {
+  resizeCanvasToWindow()
+  layoutUI()
+  // camera.size(windowWidth, windowHeight);
+  
+}
 function _smoothRel(x,c){
   if(x<0)return 0;
   if(x>1) return 1;
@@ -382,4 +452,21 @@ function resizeCanvasToWindow(){
 function setDownscaling(q){
   CurrentDownscale = q
   resizeCanvasToWindow();
+}
+
+
+
+function layoutUI(){
+  // auto layout ui in column
+  const wSize = getWindowWidth()/3
+  const gap = 10
+  let y = 0
+  let x = 0
+  
+  const hSize = getWindowHeight()/allUIs.length
+  for(const element of allUIs){
+    element.position(x,y);
+    element.size(wSize,hSize-gap)
+    y+=hSize
+  }
 }
