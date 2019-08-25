@@ -1,4 +1,4 @@
-/* Declaration des variables necessaires au programmes */
+/* Declaration des variables necessaires au programme */
 'use strict'
 p5.disableFriendlyErrors = true; // disables FES
 var button;
